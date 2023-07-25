@@ -194,7 +194,7 @@ func verifyCode(w http.ResponseWriter, r *http.Request) {
 		codeSaved := helpers.CodeGet(code, verifyCodes)
 		if codeSaved.UserID == userid && codeSaved.Expires > time.Time.Unix(time.Now()) {
 			sendMessage(userid, "Verification successful! Have fun!")
-			_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Verification successful!"})
+			_ = json.NewEncoder(w).Encode(helpers.ResponseToken{Message: "Verification successful!", SessionID: sessionId})
 			addToVerifiedSessions(userid, sessionId)
 			return
 		} else {

@@ -66,6 +66,11 @@ type Response struct {
 	Message string `json:"message"`
 }
 
+type ResponseToken struct {
+	Message   string `json:"message"`
+	SessionID string `json:"session_id"`
+}
+
 func SaveConfig(config Config) {
 	file, err := os.Create("config.json")
 	HandleError(err, false)
