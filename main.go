@@ -35,7 +35,7 @@ func initialiseRoutes() {
 	r.HandleFunc("/get-avatars/{inviteid}", getAvatars)
 	r.HandleFunc("/websocket/{sessionid}/{userids}", websocketHandler)
 
-	corsObj := handlers.AllowedOrigins([]string{"auth.awesomesauce.software", "awesomesauce.software"})
+	corsObj := handlers.AllowedOrigins([]string{"https://auth.awesomesauce.software", "https://awesomesauce.software"})
 
 	server := http.Server{
 		Addr:    ":" + config.Port,
