@@ -117,7 +117,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 			err = c.WriteMessage(mt, []byte("OK"))
 			helpers.HandleError(err, false)
 		}
-		var response []helpers.CurrentDataResponse
+		var response helpers.DataWrapper
 		for _, userid := range useridsSplit {
 			if !helpers.HasAccessToSession(sessionid, config.Sessions, GetSessionID(userid)) {
 				err := c.WriteMessage(mt, []byte("ERROR Session not allowed!"))
@@ -127,7 +127,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 			if !helpers.HasCurrentData(GetSessionID(userid), currentData) {
 				continue
 			}
-			response = append(response, helpers.CurrentDataResponse{
+			response.Data = append(response.Data, helpers.CurrentDataResponse{
 				UserID:   userid,
 				Activity: helpers.GetCurrentData(GetSessionID(userid), currentData).Activity,
 			})
