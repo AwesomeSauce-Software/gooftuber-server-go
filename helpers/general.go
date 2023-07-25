@@ -70,6 +70,10 @@ type ResponseToken struct {
 	SessionID string `json:"session_id"`
 }
 
+type DataWrapper struct {
+	Data []CurrentDataResponse `json:"data"`
+}
+
 func SaveConfig(config Config) {
 	file, err := os.Create("config.json")
 	HandleError(err, false)
