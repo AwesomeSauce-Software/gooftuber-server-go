@@ -104,28 +104,27 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 			})
 			err = c.WriteMessage(mt, []byte("OK"))
 			helpers.HandleError(err, false)
-		} else {
-			var response []helpers.CurrentDataResponse
-			for _, userid := range useridsSplit {
-				if helpers.HasAccessToSession(sessionid, config.Sessions, userid) {
-					if helpers.HasCurrentData(GetSessionID(userid), currentData) {
-						response = append(response, helpers.CurrentDataResponse{
-							UserID:   userid,
-							Activity: helpers.GetCurrentData(GetSessionID(userid), currentData).Activity,
-						})
-					} else {
-						continue
-					}
+		}
+		var response []helpers.CurrentDataResponse
+		for _, userid := range useridsSplit {
+			if helpers.HasAccessToSession(sessionid, config.Sessions, userid) {
+				if helpers.HasCurrentData(GetSessionID(userid), currentData) {
+					response = append(response, helpers.CurrentDataResponse{
+						UserID:   userid,
+						Activity: helpers.GetCurrentData(GetSessionID(userid), currentData).Activity,
+					})
 				} else {
-					err := c.WriteMessage(mt, []byte("ERROR Session not allowed!"))
-					helpers.HandleError(err, false)
 					continue
 				}
+			} else {
+				err := c.WriteMessage(mt, []byte("ERROR Session not allowed!"))
+				helpers.HandleError(err, false)
+				continue
 			}
-			encoded, _ := json.Marshal(response)
-			err = c.WriteMessage(mt, encoded)
-			helpers.HandleError(err, false)
 		}
+		encoded, _ := json.Marshal(response)
+		err = c.WriteMessage(mt, encoded)
+		helpers.HandleError(err, false)
 
 	}
 }
