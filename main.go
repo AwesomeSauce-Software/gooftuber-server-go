@@ -32,10 +32,10 @@ func initialiseRoutes() {
 	r.HandleFunc("/allow-session/{inviteid}", allowSession).Methods("GET")
 	r.HandleFunc("/deny-session/{inviteid}", denySession).Methods("GET")
 	r.HandleFunc("/upload-avatar/{sessionid}", uploadAvatars).Methods("POST")
-	r.HandleFunc("/get-avatars/{inviteid}", getAvatars).Methods("GET")
+	r.HandleFunc("/get-avatars/{sessionid}/{userid}", getAvatars).Methods("GET")
 	r.HandleFunc("/websocket/{sessionid}/{userids}", websocketHandler)
 
-	corsObj := handlers.AllowedHeaders([]string{"Accept", "Accept-Language", "Content-Type", "Content-Language", "Origin", "Access-Control-Allow-Origin"})
+	corsObj := handlers.AllowedOrigins([]string{"*"})
 
 	server := http.Server{
 		Addr:    ":" + config.Port,
@@ -61,6 +61,15 @@ func GetSessionID(userid string) string {
 	for _, s := range config.Sessions {
 		if s.UserID == userid {
 			return s.SessionID
+		}
+	}
+	return ""
+}
+
+func GetUserid(sessionid string) string {
+	for _, s := range config.Sessions {
+		if s.SessionID == sessionid {
+			return s.UserID
 		}
 	}
 	return ""
@@ -247,7 +256,7 @@ func requestSession(w http.ResponseWriter, r *http.Request) {
 	user, _ := session.User(userid)
 
 	sendMessage(userid, fmt.Sprintf("User <@%s> is requesting access to your session. Open this link to allow "+
-		"access: https://auth.awesomesauce.software/?username=%s&inviteid=%s", userid, user.Username, sessionInviteID))
+		"access: https://auth.awesomesauce.software/?username=%s&inviteid=%s", GetUserid(sourcesession), user.Username, sessionInviteID))
 
 	_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Session request sent!"})
 }
