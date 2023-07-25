@@ -99,6 +99,9 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 	}(c)
 
 	useridsSplit := strings.Split(userids, ",")
+	if userids == "0" {
+		useridsSplit = []string{}
+	}
 
 	for {
 		mt, message, err := c.ReadMessage()
