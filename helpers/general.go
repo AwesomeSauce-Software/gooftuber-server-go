@@ -364,9 +364,6 @@ func RefreshCurrentData(data []CurrentData) []CurrentData {
 func HasAccessToSession(sessionID string, sessions []Session, clientID string) bool {
 	for _, s := range sessions {
 		if s.SessionID == sessionID {
-			if s.UserID == clientID {
-				return true
-			}
 			for _, a := range s.AllowedSessions {
 				if a == clientID {
 					return true

@@ -119,7 +119,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		var response []helpers.CurrentDataResponse
 		for _, userid := range useridsSplit {
-			if !helpers.HasAccessToSession(sessionid, config.Sessions, userid) {
+			if !helpers.HasAccessToSession(sessionid, config.Sessions, GetSessionID(userid)) {
 				err := c.WriteMessage(mt, []byte("ERROR Session not allowed!"))
 				helpers.HandleError(err, false)
 				continue
