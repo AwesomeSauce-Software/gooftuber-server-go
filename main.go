@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"log"
@@ -34,9 +35,11 @@ func initialiseRoutes() {
 	r.HandleFunc("/get-avatars/{inviteid}", getAvatars)
 	r.HandleFunc("/websocket/{sessionid}/{userids}", websocketHandler)
 
+	corsObj := handlers.AllowedOrigins([]string{"auth.awesomesauce.software", "awesomesauce.software"})
+
 	server := http.Server{
 		Addr:    ":" + config.Port,
-		Handler: r,
+		Handler: handlers.CORS(corsObj)(r),
 		TLSConfig: &tls.Config{
 			NextProtos: []string{"h2", "http/1.1"},
 		},
