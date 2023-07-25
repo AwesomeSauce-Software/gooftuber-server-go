@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"os"
 	"time"
@@ -264,7 +263,7 @@ func GetAvatars(userID string) (error, Avatars) {
 		return errors.New("folder does not exist"), Avatars{}
 	}
 
-	files, err := ioutil.ReadDir("avatars/" + userID)
+	files, err := os.ReadDir("avatars/" + userID)
 	if err != nil {
 		return err, Avatars{}
 	}
@@ -277,6 +276,28 @@ func GetAvatars(userID string) (error, Avatars) {
 		})
 	}
 	return nil, avatars
+}
+
+func SaveAvatars(avatars Avatars, userID string) error {
+	if !DoesFolderExist("avatars/" + userID) {
+		err := os.Mkdir("avatars/"+userID, 0777)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, a := range avatars.Avatar {
+		decoded, err := base64.StdEncoding.DecodeString(a.Base64)
+		if err != nil {
+			return err
+		}
+
+		err = os.WriteFile("avatars/"+userID+"/"+a.Filename, decoded, 0777)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func SetAvatar(avatars Avatars, userid string) error {

@@ -309,8 +309,8 @@ func getAvatars(w http.ResponseWriter, r *http.Request) {
 
 	err, avatars := helpers.GetAvatars(userid)
 	if err != nil {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Failed to get Avatars!"})
-		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
+		w.WriteHeader(400)
 		return
 	}
 
@@ -321,36 +321,28 @@ func uploadAvatars(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sessionid := vars["sessionid"]
 
-	r.Body = http.MaxBytesReader(w, r.Body, 5*(1<<20))
-
 	if !helpers.IsSessionValid(sessionid, config.Sessions) {
 		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		w.WriteHeader(401)
 		return
 	}
 
-	err := r.ParseMultipartForm(32 << 20)
+	var av helpers.Avatars
+
+	err := json.NewDecoder(r.Body).Decode(&av)
 	if err != nil {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Failed to upload Avatars!"})
-		w.WriteHeader(500)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
+		w.WriteHeader(400)
 		return
 	}
-	fhs := r.MultipartForm.File["avatar"]
-	var avatars = helpers.Avatars{}
-	for _, fh := range fhs {
-		f, err := fh.Open()
-		if err != nil {
-			_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Failed to upload Avatars!"})
-			w.WriteHeader(500)
-			return
-		}
-		avatars.Avatar = append(avatars.Avatar, helpers.Avatar{
-			Filename: fh.Filename,
-			Base64:   helpers.FileHeaderBase64(f),
-		})
-	}
 
-	_ = json.NewEncoder(w).Encode(avatars)
+	err = helpers.SaveAvatars(av, GetUserid(sessionid))
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
+		w.WriteHeader(400)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Avatars saved!"})
 }
 
 func sendMessage(userid string, message string) {
