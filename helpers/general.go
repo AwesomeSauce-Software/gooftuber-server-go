@@ -138,12 +138,13 @@ func SessionExists(userID string, sessions []Session) []Session {
 	return sessions
 }
 
-func AddAllowedSession(sessionID string, sessionToAdd string, sessionAdd *[]Session) {
-	for _, s := range *sessionAdd {
+func AddAllowedSession(sessionID string, sessionToAdd string, sessionAdd []Session) []Session {
+	for i, s := range sessionAdd {
 		if s.SessionID == sessionID {
-			s.AllowedSessions = append(s.AllowedSessions, sessionToAdd)
+			sessionAdd[i].AllowedSessions = append(sessionAdd[i].AllowedSessions, sessionToAdd)
 		}
 	}
+	return sessionAdd
 }
 
 func DenyInvite(sessionAskID string, sessionAskIDs []SessionAskIDs) []SessionAskIDs {
