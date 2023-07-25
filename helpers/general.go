@@ -201,6 +201,16 @@ func HandleError(err error, fatal bool) {
 	}
 }
 
+func RemoveVerifyCode(code string, codes []VerifyCodes) []VerifyCodes {
+	var newCodes []VerifyCodes
+	for _, c := range codes {
+		if c.VerifyCode != code {
+			newCodes = append(newCodes, c)
+		}
+	}
+	return newCodes
+}
+
 func RemoveExpired(codes []VerifyCodes) []VerifyCodes {
 	var newCodes []VerifyCodes
 	for _, c := range codes {

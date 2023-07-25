@@ -149,12 +149,13 @@ func validSession(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func addToVerifiedSessions(userid string, sessionid string) {
+func addToVerifiedSessions(userid string, sessionid string, code string) {
 	config.Sessions = helpers.SessionExists(userid, config.Sessions)
 	config.Sessions = append(config.Sessions, helpers.Session{
 		SessionID: sessionid,
 		UserID:    userid,
 	})
+	verifyCodes = helpers.RemoveVerifyCode(code, verifyCodes)
 }
 
 func verify(w http.ResponseWriter, r *http.Request) {
@@ -194,7 +195,7 @@ func verifyCode(w http.ResponseWriter, r *http.Request) {
 		if codeSaved.UserID == userid && codeSaved.Expires > time.Time.Unix(time.Now()) {
 			sendMessage(userid, "Verification successful! Have fun!")
 			_ = json.NewEncoder(w).Encode(helpers.ResponseToken{Message: "Verification successful!", SessionID: sessionId})
-			addToVerifiedSessions(userid, sessionId)
+			addToVerifiedSessions(userid, sessionId, code)
 			return
 		} else {
 			sendMessage(userid, "Verification code incorrect! Please try again.")
