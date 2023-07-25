@@ -24,18 +24,18 @@ var upgrader = websocket.Upgrader{} // use default options
 
 func initialiseRoutes() {
 	r := mux.NewRouter()
-	r.HandleFunc("/ping", ping)
-	r.HandleFunc("/validsession/{sessionid}", validSession)
-	r.HandleFunc("/verify/{userid}", verify)
-	r.HandleFunc("/verify/{userid}/{code}", verifyCode)
-	r.HandleFunc("/request-session/{sourcesession}/{userid}", requestSession)
-	r.HandleFunc("/allow-session/{inviteid}", allowSession)
-	r.HandleFunc("/deny-session/{inviteid}", denySession)
-	r.HandleFunc("/upload-avatar/{sessionid}", uploadAvatars)
-	r.HandleFunc("/get-avatars/{inviteid}", getAvatars)
+	r.HandleFunc("/ping", ping).Methods("GET")
+	r.HandleFunc("/validsession/{sessionid}", validSession).Methods("GET")
+	r.HandleFunc("/verify/{userid}", verify).Methods("GET")
+	r.HandleFunc("/verify/{userid}/{code}", verifyCode).Methods("GET")
+	r.HandleFunc("/request-session/{sourcesession}/{userid}", requestSession).Methods("GET")
+	r.HandleFunc("/allow-session/{inviteid}", allowSession).Methods("GET")
+	r.HandleFunc("/deny-session/{inviteid}", denySession).Methods("GET")
+	r.HandleFunc("/upload-avatar/{sessionid}", uploadAvatars).Methods("POST")
+	r.HandleFunc("/get-avatars/{inviteid}", getAvatars).Methods("GET")
 	r.HandleFunc("/websocket/{sessionid}/{userids}", websocketHandler)
 
-	corsObj := handlers.AllowedOrigins([]string{"*"})
+	corsObj := handlers.AllowedHeaders([]string{"Accept", "Accept-Language", "Content-Type", "Content-Language", "Origin"})
 
 	server := http.Server{
 		Addr:    ":" + config.Port,
@@ -176,7 +176,7 @@ func verify(w http.ResponseWriter, r *http.Request) {
 		Expires:    time.Now().Unix() + 300,
 	})
 
-	sendMessage(key, fmt.Sprintf("Please verify your identity by entering this code in the software: %s\n\n"+
+	sendMessage(key, fmt.Sprintf("Please verify your identity by entering this code in the software: `%s`\n\n"+
 		"The code will expire in 5 minutes. If you did not request this verification code, please ignore this "+
 		"message.", verificationCode))
 
