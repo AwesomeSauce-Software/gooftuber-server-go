@@ -64,15 +64,6 @@ var verifyCodes []helpers.VerifyCodes
 var currentData []helpers.CurrentData
 var session *discordgo.Session
 
-func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
-	if m.Content == "id" {
-		_, _ = s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Your ID is: `%s`!", m.Author.ID))
-	}
-}
-
 func GetSessionID(userid string) string {
 	for _, s := range config.Sessions {
 		if s.UserID == userid {
@@ -403,10 +394,63 @@ func main() {
 		os.Exit(1)
 	}
 	discord, err := discordgo.New("Bot " + config.DiscordToken)
-	discord.Identify.Intents = discordgo.IntentsGuildMessages
-	discord.AddHandler(messageCreate)
+	discord.Identify.Intents = discordgo.IntentsDirectMessages
 	helpers.HandleError(err, true)
+	_, _ = discord.ApplicationCommandBulkOverwrite(config.DiscordAppID, "", []*discordgo.ApplicationCommand{
+		{
+			Name:        "id",
+			Description: "Get your Discord ID",
+		},
+	})
+
+	discord.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.ApplicationCommandData().Name == "id" {
+			var userid string
+			if i.Member != nil {
+				userid = i.Member.User.ID
+			} else {
+				userid = i.User.ID
+			}
+			var fields = []*discordgo.MessageEmbedField{
+				{
+					Name:   "Registered",
+					Value:  fmt.Sprintf("%t", helpers.DoesUserExist(userid, config.Sessions)),
+					Inline: true,
+				},
+			}
+
+			if helpers.DoesUserExist(userid, config.Sessions) {
+				fields = append(fields, &discordgo.MessageEmbedField{
+					Name:   "Session ID",
+					Value:  fmt.Sprintf("`%s`", GetSessionID(userid)),
+					Inline: true,
+				})
+			}
+
+			embed := &discordgo.MessageEmbed{
+				Title:       "Information",
+				Description: fmt.Sprintf("Your ID is `%s`", userid),
+				Color:       0x1264DF,
+				Fields:      fields,
+			}
+
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Flags:  discordgo.MessageFlagsEphemeral,
+					Embeds: []*discordgo.MessageEmbed{embed},
+				},
+			})
+		}
+	})
+
 	session = discord
+	if err != nil {
+		// Handle the error
+	}
+	err = discord.Open()
+	err = session.UpdateWatchStatus(0, "your goofy avatars!")
+	helpers.HandleError(err, false)
 	prepareScheduler()
 	initialiseRoutes()
 }

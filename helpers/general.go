@@ -28,6 +28,8 @@ type Avatars struct {
 type Config struct {
 	Port          string          `json:"port"`
 	DiscordToken  string          `json:"discordToken"`
+	DiscordAppID  string          `json:"discordAppID"`
+	DiscordGuild  string          `json:"discordGuild"`
 	Sessions      []Session       `json:"sessions"`
 	SessionAskIDs []SessionAskIDs `json:"sessionAskIDs"`
 }
