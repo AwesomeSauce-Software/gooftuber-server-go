@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	"log"
@@ -35,11 +34,19 @@ func initialiseRoutes() {
 	r.HandleFunc("/get-avatars/{sessionid}/{userid}", getAvatars).Methods("GET")
 	r.HandleFunc("/websocket/{sessionid}/{userids}", websocketHandler)
 
-	corsObj := handlers.AllowedOrigins([]string{"*"})
+	// CORS
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("Access-Control-Allow-Origin", "*")
+			w.Header().Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Add("Access-Control-Allow-Headers", "Content-Type")
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	server := http.Server{
 		Addr:    ":" + config.Port,
-		Handler: handlers.CORS(corsObj)(r),
+		Handler: r,
 		TLSConfig: &tls.Config{
 			NextProtos: []string{"h2", "http/1.1"},
 		},
@@ -56,6 +63,15 @@ var config helpers.Config
 var verifyCodes []helpers.VerifyCodes
 var currentData []helpers.CurrentData
 var session *discordgo.Session
+
+func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	if m.Author.ID == s.State.User.ID {
+		return
+	}
+	if m.Content == "id" {
+		_, _ = s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("Your ID is: `%s`!", m.Author.ID))
+	}
+}
 
 func GetSessionID(userid string) string {
 	for _, s := range config.Sessions {
@@ -135,10 +151,11 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 				Activity: helpers.GetCurrentData(GetSessionID(userid), currentData).Activity,
 			})
 		}
-		encoded, _ := json.Marshal(response)
-		err = c.WriteMessage(mt, encoded)
-		helpers.HandleError(err, false)
-
+		if response.Data != nil {
+			encoded, _ := json.Marshal(response)
+			err = c.WriteMessage(mt, encoded)
+			helpers.HandleError(err, false)
+		}
 	}
 }
 
@@ -386,6 +403,8 @@ func main() {
 		os.Exit(1)
 	}
 	discord, err := discordgo.New("Bot " + config.DiscordToken)
+	discord.Identify.Intents = discordgo.IntentsGuildMessages
+	discord.AddHandler(messageCreate)
 	helpers.HandleError(err, true)
 	session = discord
 	prepareScheduler()
