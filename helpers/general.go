@@ -26,12 +26,25 @@ type Avatars struct {
 }
 
 type Config struct {
-	Port          string          `json:"port"`
-	DiscordToken  string          `json:"discordToken"`
-	DiscordAppID  string          `json:"discordAppID"`
-	DiscordGuild  string          `json:"discordGuild"`
-	Sessions      []Session       `json:"sessions"`
-	SessionAskIDs []SessionAskIDs `json:"sessionAskIDs"`
+	Port           string           `json:"port"`
+	DiscordToken   string           `json:"discordToken"`
+	DiscordAppID   string           `json:"discordAppID"`
+	DiscordGuild   string           `json:"discordGuild"`
+	Sessions       []Session        `json:"sessions"`
+	SessionAskIDs  []SessionAskIDs  `json:"sessionAskIDs"`
+	UploadCodes    []UploadCode     `json:"uploadCodes"`
+	UploadedAvatar []UploadedAvatar `json:"uploadedAvatar"`
+}
+
+type UploadCode struct {
+	UploadCode string
+	UserID     string
+	Expires    int64
+}
+
+type UploadedAvatar struct {
+	UploadCode string
+	Uploaded   bool
 }
 
 type Session struct {
@@ -65,6 +78,11 @@ type CurrentDataResponse struct {
 
 type Response struct {
 	Message string `json:"message"`
+}
+
+type ResponseCode struct {
+	Message string `json:"message"`
+	Code    string `json:"code"`
 }
 
 type ResponseToken struct {
@@ -336,6 +354,53 @@ func IsSessionValid(sessionID string, sessions []Session) bool {
 		}
 	}
 	return false
+}
+
+func IsCodeValid(code string, codes []UploadCode) bool {
+	for _, c := range codes {
+		if c.UploadCode == code {
+			return true
+		}
+	}
+	return false
+}
+
+func GetUploadCode(code string, codes []UploadCode) UploadCode {
+	for _, c := range codes {
+		if c.UploadCode == code {
+			return c
+		}
+	}
+	return UploadCode{}
+}
+
+func RemoveUploadCode(code string, codes []UploadCode) []UploadCode {
+	var newCodes []UploadCode
+	for _, c := range codes {
+		if c.UploadCode != code {
+			newCodes = append(newCodes, c)
+		}
+	}
+	return newCodes
+}
+
+func GetUploadedAvatar(code string, uploaded []UploadedAvatar) UploadedAvatar {
+	for _, u := range uploaded {
+		if u.UploadCode == code {
+			return u
+		}
+	}
+	return UploadedAvatar{UploadCode: code, Uploaded: false}
+}
+
+func RemoveUploadedAvatar(code string, uploaded []UploadedAvatar) []UploadedAvatar {
+	var newUploaded []UploadedAvatar
+	for _, u := range uploaded {
+		if u.UploadCode != code {
+			newUploaded = append(newUploaded, u)
+		}
+	}
+	return newUploaded
 }
 
 func FileHeaderBase64(header multipart.File) string {

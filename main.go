@@ -21,6 +21,8 @@ import (
 
 var upgrader = websocket.Upgrader{} // use default options
 
+// TODO: Add character frame update to websocket
+
 func initialiseRoutes() {
 	r := mux.NewRouter()
 	r.HandleFunc("/ping", ping).Methods("GET")
@@ -31,8 +33,11 @@ func initialiseRoutes() {
 	r.HandleFunc("/allow-session/{inviteid}", allowSession).Methods("GET")
 	r.HandleFunc("/deny-session/{inviteid}", denySession).Methods("GET")
 	r.HandleFunc("/upload-avatar/{sessionid}", uploadAvatars).Methods("POST")
+	r.HandleFunc("/upload-own/{code}", uploadOwn).Methods("POST")
 	r.HandleFunc("/get-avatars/{sessionid}/{userid}", getAvatars).Methods("GET")
 	r.HandleFunc("/websocket/{sessionid}/{userids}", websocketHandler)
+	r.HandleFunc("/receive-upload/{code}", listenAvatar)
+	r.HandleFunc("/request-upload/{sessionid}", requestUpload)
 
 	// CORS
 	r.Use(func(next http.Handler) http.Handler {
@@ -146,6 +151,39 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 			encoded, _ := json.Marshal(response)
 			err = c.WriteMessage(mt, encoded)
 			helpers.HandleError(err, false)
+		}
+	}
+}
+
+func listenAvatar(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	code := vars["code"]
+
+	if !helpers.IsCodeValid(code, config.UploadCodes) {
+		w.WriteHeader(401)
+		return
+	}
+
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("upgrade:", err)
+		return
+	}
+
+	for {
+		//check if code is still valid
+		if !helpers.IsCodeValid(code, config.UploadCodes) {
+			err := c.WriteMessage(websocket.TextMessage, []byte("ERROR Code is invalid!"))
+			helpers.HandleError(err, false)
+			return
+		}
+
+		// check if file uploaded
+		if helpers.GetUploadedAvatar(code, config.UploadedAvatar).Uploaded {
+			err := c.WriteMessage(websocket.TextMessage, []byte("OK"))
+			helpers.HandleError(err, false)
+			return
 		}
 	}
 }
@@ -316,6 +354,10 @@ func getAvatars(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if userid == "0" {
+		userid = GetUserid(sessionid)
+	}
+
 	err, avatars := helpers.GetAvatars(userid)
 	if err != nil {
 		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
@@ -324,6 +366,30 @@ func getAvatars(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = json.NewEncoder(w).Encode(avatars)
+}
+
+func requestUpload(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sessionid := vars["sessionid"]
+
+	if !helpers.IsSessionValid(sessionid, config.Sessions) {
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
+		w.WriteHeader(401)
+		return
+	}
+
+	uploadCode := ""
+	for i := 0; i < 6; i++ {
+		uploadCode += strconv.Itoa(rand.Intn(9-0) + 0)
+	}
+
+	config.UploadCodes = append(config.UploadCodes, helpers.UploadCode{
+		UploadCode: uploadCode,
+		UserID:     GetUserid(sessionid),
+		Expires:    time.Now().Add(time.Minute * 5).Unix(),
+	})
+
+	_ = json.NewEncoder(w).Encode(helpers.ResponseCode{Message: "Upload code requested!", Code: uploadCode})
 }
 
 func uploadAvatars(w http.ResponseWriter, r *http.Request) {
@@ -351,6 +417,48 @@ func uploadAvatars(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
 		return
 	}
+	_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Avatars saved!"})
+}
+
+func uploadOwn(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	code := vars["code"]
+
+	if !helpers.IsCodeValid(code, config.UploadCodes) {
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid upload code!"})
+		w.WriteHeader(401)
+		return
+	}
+
+	var av helpers.Avatars
+
+	err := json.NewDecoder(r.Body).Decode(&av)
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
+		w.WriteHeader(400)
+		return
+	}
+	uploadCode := helpers.GetUploadCode(code, config.UploadCodes)
+	if uploadCode.Expires < time.Now().Unix() {
+		//remove code
+		config.UploadCodes = helpers.RemoveUploadCode(code, config.UploadCodes)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Upload code expired!"})
+		w.WriteHeader(401)
+		return
+	}
+
+	err = helpers.SaveAvatars(av, uploadCode.UserID)
+	if err != nil {
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
+		w.WriteHeader(400)
+		return
+	}
+	// set UploadedAvatar.Uploaded to true
+	config.UploadCodes = helpers.RemoveUploadCode(code, config.UploadCodes)
+	config.UploadedAvatar = append(config.UploadedAvatar, helpers.UploadedAvatar{
+		UploadCode: code,
+		Uploaded:   true,
+	})
 	_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Avatars saved!"})
 }
 
