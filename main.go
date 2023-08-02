@@ -174,14 +174,13 @@ func listenAvatar(w http.ResponseWriter, r *http.Request) {
 	for {
 		//check if code is still valid
 		if !helpers.IsCodeValid(code, config.UploadCodes) {
+			// check if file uploaded
+			if helpers.GetUploadedAvatar(code, config.UploadedAvatar).Uploaded {
+				err := c.WriteMessage(websocket.TextMessage, []byte("OK"))
+				helpers.HandleError(err, false)
+				return
+			}
 			err := c.WriteMessage(websocket.TextMessage, []byte("ERROR Code is invalid!"))
-			helpers.HandleError(err, false)
-			return
-		}
-
-		// check if file uploaded
-		if helpers.GetUploadedAvatar(code, config.UploadedAvatar).Uploaded {
-			err := c.WriteMessage(websocket.TextMessage, []byte("OK"))
 			helpers.HandleError(err, false)
 			return
 		}
