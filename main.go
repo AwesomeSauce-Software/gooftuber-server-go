@@ -178,9 +178,13 @@ func listenAvatar(w http.ResponseWriter, r *http.Request) {
 			if helpers.GetUploadedAvatar(code, config.UploadedAvatar).Uploaded {
 				err := c.WriteMessage(websocket.TextMessage, []byte("OK"))
 				helpers.HandleError(err, false)
+				err = c.Close()
+				helpers.HandleError(err, false)
 				return
 			}
 			err := c.WriteMessage(websocket.TextMessage, []byte("ERROR Code is invalid!"))
+			helpers.HandleError(err, false)
+			err = c.Close()
 			helpers.HandleError(err, false)
 			return
 		}
