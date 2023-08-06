@@ -225,8 +225,17 @@ func verify(w http.ResponseWriter, r *http.Request) {
 	key := vars["userid"]
 
 	verificationCode := ""
-	for i := 0; i < 6; i++ {
-		verificationCode += strconv.Itoa(rand.Intn(9-0) + 0)
+
+	for {
+		for i := 0; i < 6; i++ {
+			verificationCode += strconv.Itoa(rand.Intn(9-0) + 0)
+		}
+
+		if helpers.DoesVerificationCodeExist(verificationCode, verifyCodes) {
+			verificationCode = ""
+		} else {
+			break
+		}
 	}
 
 	verifyCodes = append(verifyCodes, helpers.VerifyCodes{
@@ -248,8 +257,16 @@ func verifyCode(w http.ResponseWriter, r *http.Request) {
 	code := vars["code"]
 
 	sessionId := ""
-	for i := 0; i < 10; i++ {
-		sessionId += strconv.Itoa(rand.Intn(9-0) + 0)
+	for {
+		for i := 0; i < 10; i++ {
+			sessionId += strconv.Itoa(rand.Intn(9-0) + 0)
+		}
+
+		if helpers.IsSessionValid(sessionId, config.Sessions) {
+			sessionId = ""
+		} else {
+			break
+		}
 	}
 
 	if helpers.CodeExists(code, verifyCodes) {
@@ -293,8 +310,16 @@ func requestSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionInviteID := ""
-	for i := 0; i < 10; i++ {
-		sessionInviteID += strconv.Itoa(rand.Intn(9-0) + 0)
+	for {
+		for i := 0; i < 10; i++ {
+			sessionInviteID += strconv.Itoa(rand.Intn(9-0) + 0)
+		}
+
+		if helpers.DoesInviteExist(sessionInviteID, config.SessionAskIDs) {
+			sessionInviteID = ""
+		} else {
+			break
+		}
 	}
 
 	config.SessionAskIDs = append(config.SessionAskIDs, helpers.SessionAskIDs{
@@ -382,8 +407,17 @@ func requestUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	uploadCode := ""
-	for i := 0; i < 6; i++ {
-		uploadCode += strconv.Itoa(rand.Intn(9-0) + 0)
+
+	for {
+		for i := 0; i < 6; i++ {
+			uploadCode += strconv.Itoa(rand.Intn(9-0) + 0)
+		}
+
+		if !helpers.IsCodeValid(uploadCode, config.UploadCodes) {
+			uploadCode = ""
+		} else {
+			break
+		}
 	}
 
 	config.UploadCodes = append(config.UploadCodes, helpers.UploadCode{

@@ -384,6 +384,15 @@ func RemoveUploadCode(code string, codes []UploadCode) []UploadCode {
 	return newCodes
 }
 
+func DoesVerificationCodeExist(code string, codes []VerifyCodes) bool {
+	for _, c := range codes {
+		if c.VerifyCode == code {
+			return true
+		}
+	}
+	return false
+}
+
 func GetUploadedAvatar(code string, uploaded []UploadedAvatar) UploadedAvatar {
 	for _, u := range uploaded {
 		if u.UploadCode == code {
