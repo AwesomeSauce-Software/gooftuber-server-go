@@ -129,6 +129,24 @@ func SaveEmptyConfig() {
 
 }
 
+func GetSessionID(userid string, config Config) string {
+	for _, s := range config.Sessions {
+		if s.UserID == userid {
+			return s.SessionID
+		}
+	}
+	return ""
+}
+
+func GetUserid(sessionid string, config Config) string {
+	for _, s := range config.Sessions {
+		if s.SessionID == sessionid {
+			return s.UserID
+		}
+	}
+	return ""
+}
+
 func LoadConfig() Config {
 	file, err := os.Open("config.json")
 	HandleError(err, false)
@@ -358,7 +376,7 @@ func IsSessionValid(sessionID string, sessions []Session) bool {
 
 func IsCodeValid(code string, codes []UploadCode) bool {
 	for _, c := range codes {
-		if c.UploadCode == code {
+		if c.UploadCode == code && c.Expires > time.Now().Unix() {
 			return true
 		}
 	}

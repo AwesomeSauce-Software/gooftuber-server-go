@@ -4,9 +4,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
-	"github.com/gorilla/mux"
-	"github.com/gorilla/websocket"
 	"log"
 	"math/rand"
 	"minituber-server/helpers"
@@ -15,6 +12,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 
 	"github.com/go-co-op/gocron"
 )
@@ -69,24 +70,6 @@ var verifyCodes []helpers.VerifyCodes
 var currentData []helpers.CurrentData
 var session *discordgo.Session
 
-func GetSessionID(userid string) string {
-	for _, s := range config.Sessions {
-		if s.UserID == userid {
-			return s.SessionID
-		}
-	}
-	return ""
-}
-
-func GetUserid(sessionid string) string {
-	for _, s := range config.Sessions {
-		if s.SessionID == sessionid {
-			return s.UserID
-		}
-	}
-	return ""
-}
-
 func websocketHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -134,17 +117,17 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		var response helpers.DataWrapper
 		for _, userid := range useridsSplit {
-			if !helpers.HasAccessToSession(sessionid, config.Sessions, GetSessionID(userid)) {
+			if !helpers.HasAccessToSession(sessionid, config.Sessions, helpers.GetSessionID(userid, config)) {
 				err := c.WriteMessage(mt, []byte("ERROR Session not allowed!"))
 				helpers.HandleError(err, false)
 				continue
 			}
-			if !helpers.HasCurrentData(GetSessionID(userid), currentData) {
+			if !helpers.HasCurrentData(helpers.GetSessionID(userid, config), currentData) {
 				continue
 			}
 			response.Data = append(response.Data, helpers.CurrentDataResponse{
 				UserID:   userid,
-				Activity: helpers.GetCurrentData(GetSessionID(userid), currentData).Activity,
+				Activity: helpers.GetCurrentData(helpers.GetSessionID(userid, config), currentData).Activity,
 			})
 		}
 		if response.Data != nil {
@@ -297,15 +280,15 @@ func requestSession(w http.ResponseWriter, r *http.Request) {
 
 	if !helpers.IsSessionValid(sourcesession, config.Sessions) {
 		sendMessage(userid, "Invalid session ID!")
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		return
 	}
 
 	if !helpers.DoesUserExist(userid, config.Sessions) {
 		sendMessage(userid, "Invalid user ID!")
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid user ID!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid user ID!"})
 		return
 	}
 
@@ -325,13 +308,13 @@ func requestSession(w http.ResponseWriter, r *http.Request) {
 	config.SessionAskIDs = append(config.SessionAskIDs, helpers.SessionAskIDs{
 		InviteID:       sessionInviteID,
 		SessionID:      sourcesession,
-		AllowSessionID: GetSessionID(userid),
+		AllowSessionID: helpers.GetSessionID(userid, config),
 	})
 
 	user, _ := session.User(userid)
 
 	sendMessage(userid, fmt.Sprintf("User <@%s> is requesting access to your session. Open this link to allow "+
-		"access: https://auth.awesomesauce.software/?username=%s&inviteid=%s", GetUserid(sourcesession), user.Username, sessionInviteID))
+		"access: https://auth.awesomesauce.software/?username=%s&inviteid=%s", helpers.GetUserid(sourcesession, config), user.Username, sessionInviteID))
 
 	_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Session request sent!"})
 }
@@ -340,16 +323,16 @@ func allowSession(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	inviteID := vars["inviteid"]
 	if !helpers.DoesInviteExist(inviteID, config.SessionAskIDs) {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid invite ID!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid invite ID!"})
 		return
 	}
 	sessionId := helpers.GetInvite(inviteID, config.SessionAskIDs).SessionID
 	allowSessionId := helpers.GetInvite(inviteID, config.SessionAskIDs).AllowSessionID
 
 	if !helpers.IsSessionValid(sessionId, config.Sessions) || !helpers.IsSessionValid(allowSessionId, config.Sessions) {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		return
 	}
 
@@ -362,8 +345,8 @@ func denySession(w http.ResponseWriter, r *http.Request) {
 	inviteID := vars["inviteid"]
 
 	if !helpers.DoesInviteExist(inviteID, config.SessionAskIDs) {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid invite ID!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid invite ID!"})
 		return
 	}
 
@@ -377,19 +360,19 @@ func getAvatars(w http.ResponseWriter, r *http.Request) {
 	userid := vars["userid"]
 
 	if !helpers.IsSessionValid(sessionid, config.Sessions) {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		return
 	}
 
 	if userid == "0" {
-		userid = GetUserid(sessionid)
+		userid = helpers.GetUserid(sessionid, config)
 	}
 
 	err, avatars := helpers.GetAvatars(userid)
 	if err != nil {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		w.WriteHeader(400)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		return
 	}
 
@@ -401,8 +384,8 @@ func requestUpload(w http.ResponseWriter, r *http.Request) {
 	sessionid := vars["sessionid"]
 
 	if !helpers.IsSessionValid(sessionid, config.Sessions) {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		return
 	}
 
@@ -413,7 +396,8 @@ func requestUpload(w http.ResponseWriter, r *http.Request) {
 			uploadCode += strconv.Itoa(rand.Intn(9-0) + 0)
 		}
 
-		if !helpers.IsCodeValid(uploadCode, config.UploadCodes) {
+		if helpers.IsCodeValid(uploadCode, config.UploadCodes) {
+			log.Println("Code already exists!")
 			uploadCode = ""
 		} else {
 			break
@@ -422,7 +406,7 @@ func requestUpload(w http.ResponseWriter, r *http.Request) {
 
 	config.UploadCodes = append(config.UploadCodes, helpers.UploadCode{
 		UploadCode: uploadCode,
-		UserID:     GetUserid(sessionid),
+		UserID:     helpers.GetUserid(sessionid, config),
 		Expires:    time.Now().Add(time.Minute * 5).Unix(),
 	})
 
@@ -434,8 +418,8 @@ func uploadAvatars(w http.ResponseWriter, r *http.Request) {
 	sessionid := vars["sessionid"]
 
 	if !helpers.IsSessionValid(sessionid, config.Sessions) {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid session ID!"})
 		return
 	}
 
@@ -443,15 +427,15 @@ func uploadAvatars(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&av)
 	if err != nil {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		w.WriteHeader(400)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		return
 	}
 
-	err = helpers.SaveAvatars(av, GetUserid(sessionid))
+	err = helpers.SaveAvatars(av, helpers.GetUserid(sessionid, config))
 	if err != nil {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		w.WriteHeader(400)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		return
 	}
 	_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Avatars saved!"})
@@ -462,8 +446,8 @@ func uploadOwn(w http.ResponseWriter, r *http.Request) {
 	code := vars["code"]
 
 	if !helpers.IsCodeValid(code, config.UploadCodes) {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid upload code!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Invalid upload code!"})
 		return
 	}
 
@@ -471,23 +455,23 @@ func uploadOwn(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&av)
 	if err != nil {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		w.WriteHeader(400)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		return
 	}
 	uploadCode := helpers.GetUploadCode(code, config.UploadCodes)
 	if uploadCode.Expires < time.Now().Unix() {
 		//remove code
 		config.UploadCodes = helpers.RemoveUploadCode(code, config.UploadCodes)
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Upload code expired!"})
 		w.WriteHeader(401)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: "Upload code expired!"})
 		return
 	}
 
 	err = helpers.SaveAvatars(av, uploadCode.UserID)
 	if err != nil {
-		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		w.WriteHeader(400)
+		_ = json.NewEncoder(w).Encode(helpers.Response{Message: err.Error()})
 		return
 	}
 	// set UploadedAvatar.Uploaded to true
@@ -567,7 +551,7 @@ func main() {
 			if helpers.DoesUserExist(userid, config.Sessions) {
 				fields = append(fields, &discordgo.MessageEmbedField{
 					Name:   "Session ID",
-					Value:  fmt.Sprintf("`%s`", GetSessionID(userid)),
+					Value:  fmt.Sprintf("`%s`", helpers.GetSessionID(userid, config)),
 					Inline: true,
 				})
 			}
@@ -590,9 +574,7 @@ func main() {
 	})
 
 	session = discord
-	if err != nil {
-		// Handle the error
-	}
+	helpers.HandleError(err, true)
 	err = discord.Open()
 	err = session.UpdateWatchStatus(0, "your goofy avatars!")
 	helpers.HandleError(err, false)

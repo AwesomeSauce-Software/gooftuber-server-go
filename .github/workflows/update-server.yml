@@ -2,6 +2,19 @@ name: Deploy latest Gooftuber Server
 on: [push]
 jobs:
 
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Go test
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.21.0
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Run tests
+      run: go test -v ./...
+
   build:
     name: Update
     runs-on: ubuntu-latest
