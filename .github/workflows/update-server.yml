@@ -1,0 +1,17 @@
+name: Deploy latest Gooftuber Server
+on: [push]
+jobs:
+
+  build:
+    name: Update
+    runs-on: ubuntu-latest
+    steps:
+    - name: executing remote ssh commands using password
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_IP }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE }}
+        script: |
+          cd
+          ./update-server.sh
